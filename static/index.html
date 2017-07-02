@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+  </head>
+  <body>
+    <input id="gameId" type="textbox">
+    <input id="join" style="" type="button" value="Join Game" />
+    <br />
+    You have 
+    <span id="yourmoney"></span> chips!
+    <br />
+    Pot is 
+    <span id="pot"></span> chips.
+    <br />
+    <input id="bet10" type="button" value="Bet 10" onclick="$.getJSON('/bet?amount=10')">
+    <br />  
+    <input id="bet50" type="button" value="Bet 50" onclick="$.getJSON('/bet?amount=50')">
+    <br />  
+    <input id="bet100" type="button" value="Bet 100" onclick="$.getJSON('/bet?amount=100')">
+    <br />
+    <input id="bet200" type="button" value="Bet 200" onclick="$.getJSON('/bet?amount=200')">
+    <br />
+    <input id="take" type="button" value="Take Pot" onclick="$.getJSON('/takepot')">
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+<script>
+
+var session_;
+var code;
+
+var offset = 0;
+var raw = 0;
+
+$("join").click(function() {
+    $.get("/joingame?initialMoney=1000&gameId=" + $("gameId").val());
+});
+
+function main() {
+   setInterval(function() {
+       $.getJSON("/getstate", function(data){
+           var user = document.cookie.replace(/(?:(?:^|.*;\s*)user\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+	   chips = "" + data[data.length - 1]["money"][user];
+	   console.log(chips);
+	   $("#yourmoney").text(chips);
+	   $("#pot").text(data[data.length - 1]["pot"]);
+       });
+   }, 500);
+}
+
+
+main();
+</script>
+  </body>
+</html>

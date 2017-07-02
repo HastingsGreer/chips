@@ -5,7 +5,7 @@ import random
 import pickle
 
 import datetime
-
+import copy
 app = Flask(__name__)
 
 CORS(app)
@@ -17,94 +17,98 @@ pokergames = {}
 
 seenIPS = set()
 
-def log(meme):
-    if not meme in histories:
-        histories[meme] = []
-    histories[meme].append( {"time":datetime.datetime.utcnow(), "price":prices[meme]})
-    
-    entry = {"meme": meme, "price": prices[meme]}
-    if len(transactions) and transactions[-1]["meme"] == meme:
-        transactions[-1] = entry
-    else:
-        transactions.append(entry)
 
-@app.route('/joinGame')
-def joinGame() 
-         gameId = request.args.get('gameId')
-         if not gameId in games:
-             games[gameId] = [{"users" : [
-         game = games[gameId]
-         
-         self.state = states[0]
-@app.route('/')
+@app.route('/joingame')
+def joingame(): 
+    gameId = request.args.get('gameId')
+    user = request.cookies.get('user')
+    if not user in users:
+        return "Steve dies at the end of Wonder Woman"
+    if(users[user]["gameId"] == gameId):
+        return "alreadydid"
+    users[user]["gameId"] = gameId
+    
+    if not gameId in pokergames:
+        pokergames[gameId] = [{ 
+	         "money" : {user: int(request.args.get('initialMoney'))},
+		 "actor" : user,
+		 "pot" : 0,
+		 "initialMoney" : int(request.args.get('initialMoney'))
+	}]
+	
+    else:
+        game = pokergames[gameId]
+	
+        oldstate = copy.deepcopy(game[-1])
+
+        oldstate["money"][user] = oldstate["initialMoney"]
+	oldstate["actor"] = user
+	game.append(oldstate)
+    return ""
+
+
+@app.route('/getstate')
 def getstate():
+    print(users)
+    print(pokergames)
     user = request.cookies.get('user')
     if not user in users:
        new = True
        user = str(random.random())
        money = 1000 if request.access_route[0] not in seenIPS else 0
-       users[user] = {"game":0}
+       users[user] = {"gameId":0}
     seenIPS.add(request.access_route[0])
     if random.random() > .96:
-       print("saved")"""
-       pickle.dump(users, open("users.pickle", "wb"))
-       pickle.dump(prices, open("prices.pickle", "wb"))
-       pickle.dump(histories, open("histories.pickle", "wb"))
-       pickle.dump(seenIPS, open("seenIPS.pickle", "wb"))"""
-    response = app.make_response(jsonify(pokergames[users[user]]))
+        print("saved")
+        """
+        pickle.dump(users, open("users.pickle", "wb"))
+        pickle.dump(prices, open("prices.pickle", "wb"))
+        pickle.dump(histories, open("histories.pickle", "wb"))
+        pickle.dump(seenIPS, open("seenIPS.pickle", "wb"))"""
+    if(users[user]["gameId"] in pokergames):
+        response = app.make_response(jsonify(pokergames[users[user]["gameId"]]))
+    else:
+        response = app.make_response(jsonify([]))
     response.set_cookie("user", value = user, expires = datetime.datetime(9999, 1, 1))
     return response
 
 @app.route('/bet')
-def buy():
+def bet():
     user = request.cookies.get('user')
     if not user in users:
         return "derp"
-    meme = request.args.get("meme")
-    if not meme in prices:
-       prices[meme] = 0
-    if not meme in users[user]["stocks"]:
-       users[user]["stocks"][meme] = 0
-    if users[user]["money"] > prices[meme]:
-       users[user]["money"] -= prices[meme]
-       users[user]["stocks"][meme] += 1
-       prices[meme] += 1
-    log(meme)
-    return ""
 
-@app.route('/sell')
-def sell():
+    game = pokergames[users[user]["gameId"]]
+    oldstate = copy.deepcopy(game[-1])
+    amount = int(request.args.get("amount"))
+    
+    if amount > oldstate["money"][user]:
+        return "too poor"
+    
+    oldstate["money"][user] -= amount
+    oldstate["pot"] += amount
+    oldstate["actor"] = user
+    game.append(oldstate)
+    return "went well"
+
+@app.route('/takepot')
+def takepot():
     user = request.cookies.get('user')
     if not user in users:
         return "derp"
-    meme = request.args.get("meme")
-    if not( meme in users[user]["stocks"] ) or users[user]["stocks"][meme] == 0 :
-       return "you don't have that"
-    if not( meme in prices):
-       prices[meme] = 12
-    prices[meme] -= 1
-    users[user]["money"] += prices[meme]
-    users[user]["stocks"][meme] -= 1
-    log(meme)
-    return ""
+    
+    game = pokergames[users[user]["gameId"]]
+    oldstate = copy.deepcopy(game[-1])
+    
+    oldstate["money"][user] += oldstate["pot"]
+    oldstate["pot"] = 0
+    oldstate["actor"] = user
+    
+
+    game.append(oldstate)
+    return "went well"
 
 
-
-
-@app.route('/stocks')
-def stocks():
-    return jsonify(prices)
-
-@app.route('/history')
-def history():
-    meme = request.args.get("meme")
-    if not meme in histories:
-       return jsonify([])
-    return jsonify(histories[meme])
-
-@app.route('/recent')
-def recent():   
-    return jsonify(transactions[-100:])
 
 
 if __name__ == '__main__':
